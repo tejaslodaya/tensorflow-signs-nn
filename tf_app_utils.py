@@ -1,6 +1,9 @@
 import tensorflow as tf
 from tensorflow.python.framework import ops
 from tf_utils import *
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 
 def create_placeholders(n_x, n_y):
     """
@@ -167,6 +170,13 @@ def model(X_train, Y_train, X_test, Y_test, learning_rate=0.0001,
                 print("Cost after epoch %i: %f" % (epoch, epoch_cost))
             if print_cost == True and epoch % 5 == 0:
                 costs.append(epoch_cost)
+
+        # plot the cost
+        plt.plot(np.squeeze(costs))
+        plt.ylabel('cost')
+        plt.xlabel('iterations (per tens)')
+        plt.title("Learning rate =" + str(learning_rate))
+        plt.savefig('cost.png')
 
         # lets save the parameters in a variable
         parameters = sess.run(parameters)
