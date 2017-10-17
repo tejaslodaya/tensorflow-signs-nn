@@ -1,10 +1,10 @@
 import math
 import numpy as np
 import h5py
-import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow.python.framework import ops
 from tf_utils import load_dataset, random_mini_batches, convert_to_one_hot, predict
+from tf_app_utils import model
 
 np.random.seed(1)
 
@@ -22,3 +22,4 @@ X_test = X_test_flatten/255.
 Y_train = convert_to_one_hot(Y_train_orig, 6)
 Y_test = convert_to_one_hot(Y_test_orig, 6)
 
+parameters = model(X_train, Y_train, X_test, Y_test)
