@@ -7,8 +7,8 @@ def create_placeholders(n_x, n_y):
     Creates the placeholders for the tensorflow session.
 
     Arguments:
-    n_x -- scalar, size of an image vector (num_px * num_px = 64 * 64 * 3 = 12288)
-    n_y -- scalar, number of classes (from 0 to 5, so -> 6)
+    n_x -- scalar, size of an image vector (height * width * depth)
+    n_y -- scalar, number of classes
 
     Returns:
     X -- placeholder for the data input, of shape [n_x, None] and dtype "float"
@@ -22,83 +22,71 @@ def create_placeholders(n_x, n_y):
     return X, Y
 
 
-def initialize_parameters():
+def initialize_parameters(layer_dims):
     """
-    Initializes parameters to build a neural network with tensorflow. The shapes are:
-                        W1 : [25, 12288]
-                        b1 : [25, 1]
-                        W2 : [12, 25]
-                        b2 : [12, 1]
-                        W3 : [6, 12]
-                        b3 : [6, 1]
-
+    Initializes parameters to build a neural network with tensorflow.
+    
     Returns:
-    parameters -- a dictionary of tensors containing W1, b1, W2, b2, W3, b3
+    parameters -- a dictionary of tensors containing weights and biases
     """
 
-    tf.set_random_seed(1)  # so that your "random" numbers match ours
+    tf.set_random_seed(1)
+    L = len(layer_dims) - 1
+    parameters = {}
 
-    W1 = tf.get_variable("W1", [25, 12288], initializer=tf.contrib.layers.xavier_initializer(seed=1))
-    b1 = tf.get_variable("b1", [25, 1], initializer=tf.zeros_initializer())
-    W2 = tf.get_variable("W2", [12, 25], initializer=tf.contrib.layers.xavier_initializer(seed=1))
-    b2 = tf.get_variable("b2", [12, 1], initializer=tf.zeros_initializer())
-    W3 = tf.get_variable("W3", [6, 12], initializer=tf.contrib.layers.xavier_initializer(seed=1))
-    b3 = tf.get_variable("b3", [6, 1], initializer=tf.zeros_initializer())
+    for l in range(L):
+        parameters["W"+str(l+1)] = tf.get_variable("W"+str(l+1),
+                                                   [layer_dims[l+1], layer_dims[l]],
+                                                   initializer=tf.contrib.layers.xavier_initializer(seed = 1))
 
-    parameters = {"W1": W1,
-                  "b1": b1,
-                  "W2": W2,
-                  "b2": b2,
-                  "W3": W3,
-                  "b3": b3}
+        parameters["b"+str(l+1)] = tf.get_variable("b"+str(l+1),
+                                                   [layer_dims[l+1], 1],
+                                                   initializer=tf.zeros_initializer())
 
     return parameters
 
 
 def forward_propagation(X, parameters):
     """
-    Implements the forward propagation for the model: LINEAR -> RELU -> LINEAR -> RELU -> LINEAR -> SOFTMAX
+    Implements the forward propagation for the model: (L-1)[LINEAR->RELU]->LINEAR->SOFTMAX
 
     Arguments:
     X -- input dataset placeholder, of shape (input size, number of examples)
-    parameters -- python dictionary containing your parameters "W1", "b1", "W2", "b2", "W3", "b3"
-                  the shapes are given in initialize_parameters
+    parameters -- python dictionary containing model parameters
 
     Returns:
-    Z3 -- the output of the last LINEAR unit
+    ZL -- the output of the last LINEAR unit
     """
 
     # Retrieve the parameters from the dictionary "parameters"
-    W1 = parameters['W1']
-    b1 = parameters['b1']
-    W2 = parameters['W2']
-    b2 = parameters['b2']
-    W3 = parameters['W3']
-    b3 = parameters['b3']
+    L = len(parameters) // 2
+    A = X
+    Z = None
 
-    Z1 = tf.add(tf.matmul(W1, X), b1)
-    A1 = tf.nn.relu(Z1)
-    Z2 = tf.add(tf.matmul(W2, A1), b2)
-    A2 = tf.nn.relu(Z2)
-    Z3 = tf.add(tf.matmul(W3, A2), b3)
+    for l in range(L):
+        W = parameters["W"+str(l+1)]
+        b = parameters["b"+str(l+1)]
 
-    return Z3
+        Z = tf.add(tf.matmul(W, A), b)
+        A = tf.nn.relu(Z)
+
+    return Z
 
 
-def compute_cost(Z3, Y):
+def compute_cost(ZL, Y):
     """
     Computes the cost
 
     Arguments:
-    Z3 -- output of forward propagation (output of the last LINEAR unit), of shape (6, number of examples)
-    Y -- "true" labels vector placeholder, same shape as Z3
+    ZL -- output of forward propagation (output of the last LINEAR unit), of shape (number of classes, number of examples)
+    Y -- "true" labels vector placeholder, same shape as ZL
 
     Returns:
     cost - Tensor of the cost function
     """
 
     # to fit the tensorflow requirement for tf.nn.softmax_cross_entropy_with_logits(...,...)
-    logits = tf.transpose(Z3)
+    logits = tf.transpose(ZL)
     labels = tf.transpose(Y)
 
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits,
@@ -110,13 +98,13 @@ def compute_cost(Z3, Y):
 def model(X_train, Y_train, X_test, Y_test, learning_rate=0.0001,
           num_epochs=1500, minibatch_size=32, print_cost=True):
     """
-    Implements a three-layer tensorflow neural network: LINEAR->RELU->LINEAR->RELU->LINEAR->SOFTMAX.
+    Implements a L-layer tensorflow neural network: (L-1)[LINEAR->RELU]->LINEAR->SOFTMAX
 
     Arguments:
-    X_train -- training set, of shape (input size = 12288, number of training examples = 1080)
-    Y_train -- test set, of shape (output size = 6, number of training examples = 1080)
-    X_test -- training set, of shape (input size = 12288, number of training examples = 120)
-    Y_test -- test set, of shape (output size = 6, number of test examples = 120)
+    X_train -- training set, of shape (input size, number of training examples)
+    Y_train -- test set, of shape (output size, number of training examples)
+    X_test -- training set, of shape (input size, number of training examples)
+    Y_test -- test set, of shape (output size, number of test examples)
     learning_rate -- learning rate of the optimization
     num_epochs -- number of epochs of the optimization loop
     minibatch_size -- size of a minibatch
@@ -132,18 +120,19 @@ def model(X_train, Y_train, X_test, Y_test, learning_rate=0.0001,
     (n_x, m) = X_train.shape  # (n_x: input size, m : number of examples in the train set)
     n_y = Y_train.shape[0]  # n_y : output size
     costs = []  # To keep track of the cost
+    layer_dims = [n_x, 25, 12, n_y] # to initialize parameters
 
     # Create Placeholders of shape (n_x, n_y)
     X, Y = create_placeholders(n_x, n_y)
 
     # Initialize parameters
-    parameters = initialize_parameters()
+    parameters = initialize_parameters(layer_dims)
 
     # Forward propagation: Build the forward propagation in the tensorflow graph
-    Z3 = forward_propagation(X, parameters=parameters)
+    ZL = forward_propagation(X, parameters=parameters)
 
     # Cost function: Add cost function to tensorflow graph
-    cost = compute_cost(Z3, Y)
+    cost = compute_cost(ZL, Y)
 
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
@@ -184,7 +173,7 @@ def model(X_train, Y_train, X_test, Y_test, learning_rate=0.0001,
         print("Parameters have been trained!")
 
         # Calculate the correct predictions
-        correct_prediction = tf.equal(tf.argmax(Z3), tf.argmax(Y))
+        correct_prediction = tf.equal(tf.argmax(ZL), tf.argmax(Y))
 
         # Calculate accuracy on the test set
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
@@ -193,3 +182,50 @@ def model(X_train, Y_train, X_test, Y_test, learning_rate=0.0001,
         print("Test Accuracy:", accuracy.eval({X: X_test, Y: Y_test}))
 
         return parameters
+
+
+def predict(X, parameters, n_x):
+
+    L = len(parameters) // 2
+    params = {}
+
+    for l in range(L):
+        params["W"+str(l+1)] = tf.convert_to_tensor(parameters["W"+str(l+1)])
+        params["b"+str(l+1)] = tf.convert_to_tensor(parameters["b"+str(l+1)])
+
+    x = tf.placeholder("float", [n_x, 1])
+
+    zl = forward_propagation_for_predict(x, params)
+    p = tf.argmax(zl)
+
+    sess = tf.Session()
+    prediction = sess.run(p, feed_dict={x: X})
+
+    return prediction
+
+
+def forward_propagation_for_predict(X, parameters):
+    """
+    Implements the forward propagation for the model: (L-1)[LINEAR -> RELU] -> LINEAR -> SOFTMAX
+
+    Arguments:
+    X -- input dataset placeholder, of shape (input size, number of examples)
+    parameters -- python dictionary containing parameters
+
+    Returns:
+    ZL -- the output of the last LINEAR unit
+    """
+
+    # Retrieve the parameters from the dictionary "parameters"
+    L = len(parameters) // 2
+    A = X
+    Z = None
+
+    for l in range(L):
+        W = parameters["W"+str(l+1)]
+        b = parameters["b"+str(l+1)]
+
+        Z = tf.add(tf.matmul(W, A), b)
+        A = tf.nn.relu(Z)
+
+    return Z
