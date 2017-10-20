@@ -21,6 +21,7 @@ Outcome:
 1.  Training cost graph-
 
 ![alt cost](https://raw.githubusercontent.com/tejaslodaya/tensorflow-signs-nn/master/cost.png)
+
 2.  Train Accuracy - 0.999074 <br>
     Test Accuracy - 0.716667
 3.  TODO- to overcome overfitting, add L2 or dropout regularization    
